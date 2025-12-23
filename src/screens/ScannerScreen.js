@@ -1,18 +1,12 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { BarCodeScanner } from 'expo-barcode-scanner';
 import SectionCard from '../components/SectionCard';
-import { fetchProductDetails } from '../services/foodApi';
-import { getCachedProduct, setCachedProduct } from '../services/foodCache';
-
-const BARCODE_LOOKUP_API_KEY = '';
 
 export default function ScannerScreen() {
   const [hasPermission, setHasPermission] = useState(null);
   const [scanned, setScanned] = useState(false);
   const [lastScan, setLastScan] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
     const requestPermission = async () => {
@@ -22,31 +16,9 @@ export default function ScannerScreen() {
     requestPermission();
   }, []);
 
-  const handleBarCodeScanned = async ({ data }) => {
+  const handleBarCodeScanned = ({ type, data }) => {
     setScanned(true);
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const cached = await getCachedProduct(data);
-      if (cached) {
-        setLastScan(cached);
-        setIsLoading(false);
-        return;
-      }
-
-      const product = await fetchProductDetails(data, BARCODE_LOOKUP_API_KEY);
-      if (!product) {
-        setError('Produit introuvable dans les sources disponibles.');
-      } else {
-        setLastScan(product);
-        await setCachedProduct(data, product);
-      }
-    } catch (err) {
-      setError('Impossible de récupérer les informations du produit.');
-    } finally {
-      setIsLoading(false);
-    }
+    setLastScan({ type, data });
   };
 
   return (
@@ -64,18 +36,10 @@ export default function ScannerScreen() {
             />
           </View>
         )}
-        {isLoading && (
-          <View style={styles.loadingRow}>
-            <ActivityIndicator color="#0ea5e9" />
-            <Text style={styles.loadingText}>Recherche du produit...</Text>
-          </View>
-        )}
-        {error && <Text style={styles.error}>{error}</Text>}
-        {lastScan && !isLoading && (
+        {lastScan && (
           <View style={styles.scanResult}>
-            <Text style={styles.scanLabel}>Produit détecté</Text>
-            <Text style={styles.scanValue}>{lastScan.name}</Text>
-            <Text style={styles.scanMeta}>Source: {lastScan.source}</Text>
+            <Text style={styles.scanLabel}>Dernier scan</Text>
+            <Text style={styles.scanValue}>{lastScan.data}</Text>
           </View>
         )}
         {scanned && (
@@ -115,19 +79,6 @@ const styles = StyleSheet.create({
   warning: {
     color: '#ef4444',
   },
-  loadingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 12,
-  },
-  loadingText: {
-    marginLeft: 8,
-    color: '#475569',
-  },
-  error: {
-    marginTop: 12,
-    color: '#ef4444',
-  },
   scanResult: {
     marginTop: 12,
   },
@@ -137,10 +88,6 @@ const styles = StyleSheet.create({
   scanValue: {
     fontWeight: '600',
     color: '#0f172a',
-  },
-  scanMeta: {
-    color: '#94a3b8',
-    fontSize: 12,
   },
   primaryButton: {
     marginTop: 16,
